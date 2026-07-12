@@ -13,10 +13,10 @@ jobs:
   audit:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout repository source
         uses: actions/checkout@v4
 
-      - name: Audit repo-level hardening settings
+      - name: Audit repository security hardening settings
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
