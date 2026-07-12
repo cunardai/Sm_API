@@ -26,6 +26,11 @@ jobs:
           for branch in main develop; do
             echo "Applying branch protection to $branch"
 
+            if ! gh api "repos/$REPO/branches/$branch" >/dev/null 2>&1; then
+              echo "Branch '$branch' was not found or is not accessible; skipping."
+              continue
+            fi
+
             body='{
               "required_status_checks": null,
               "enforce_admins": true,
@@ -45,11 +50,14 @@ jobs:
               "lock_branch": false
             }'
 
-            printf '%s\n' "$body" | gh api \
+            if ! printf '%s\n' "$body" | gh api \
               --method PUT \
               -H "Accept: application/vnd.github+json" \
               "/repos/$REPO/branches/$branch/protection" \
-              --input -
+              --input -; then
+              echo "::error::Unable to update branch protection for '$branch'. The token likely lacks admin access to repository branch protection APIs. Configure a PAT or GitHub App token with repo admin permissions and set it as GH_ADMIN_TOKEN."
+              exit 1
+            fi
 
             echo "Branch protection updated successfully for $branch"
           done
