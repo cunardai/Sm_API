@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --no-restore --configuration Release
+
+      - name: Test
+        run: dotnet test --no-build --configuration Release --logger "trx;LogFileName=test-results.trx"
+
+      - name: Publish test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: "**/test-results.trx"
+
+      # Defense-in-depth alongside Dependabot: fail the build if a known
+      # critical/high vulnerable NuGet package is referenced (direct or transitive).
+      - name: Check for vulnerable NuGet packages
+        run: |
+          set -euo pipefail
+          echo "Scanning for known-vulnerable packages..."
+          report=$(dotnet list package --vulnerable --include-transitive 2>&1) || true
+          echo "$report"
+          if echo "$report" | grep -qi "has the following vulnerable packages"; then
+            echo "::error::Vulnerable NuGet packages detected. See job log above."
+            exit 1
+          fi

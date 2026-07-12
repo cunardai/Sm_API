@@ -1,0 +1,62 @@
+name: Secret Scanning (gitleaks)
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Weekly full-history scan to catch anything that slipped past PR scanning
+    # (e.g. force-pushed history, commits made outside the protected branch).
+    - cron: "0 6 * * 1"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  diff-scan:
+    if: github.event_name == 'push' || github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run gitleaks on the diff
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_CONFIG: .gitleaks.toml
+
+  full-history-scan:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout full history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Scan entire git history for committed credentials
+        run: |
+          docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:latest \
+            detect --source=/repo --log-opts="--all" --config=/repo/.gitleaks.toml \
+            --report-format=json --report-path=/repo/gitleaks-history-report.json --exit-code=1
+
+      - name: Upload history scan report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gitleaks-history-report
+          path: gitleaks-history-report.json
+
+      - name: Fail with remediation guidance
+        if: failure()
+        run: |
+          echo "::error::gitleaks found credentials in git history. Do NOT just delete the commit."
+          echo "1. Rotate/revoke the exposed credential immediately at the issuing provider."
+          echo "2. Purge it from history with git filter-repo or BFG Repo-Cleaner."
+          echo "3. Force-push the rewritten history and have all collaborators re-clone."
+          echo "See gitleaks-history-report.json (uploaded as a workflow artifact) for exact commits/files."
