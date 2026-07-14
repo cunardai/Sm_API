@@ -5,7 +5,7 @@ on:
   push:
     branches:
       - main
-      - develop
+      - Q3_2026
     paths:
       - .github/workflows/EnforceRequiredReviewer.yml
 
@@ -23,7 +23,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          for branch in main develop; do
+          for branch in main Q3_2026; do
             echo "Applying branch protection to $branch"
 
             if ! gh api "repos/$REPO/branches/$branch" >/dev/null 2>&1; then
