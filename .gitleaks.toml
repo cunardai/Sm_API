@@ -1,0 +1,14 @@
+title = "Sm_API gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Known-safe test/dev fixtures, not real credentials"
+paths = [
+  '''appsettings\.Development\.json''',
+]
+regexes = [
+  # EF Core local SQLite connection strings are not secrets.
+  '''Data Source=.*\.db''',
+]
