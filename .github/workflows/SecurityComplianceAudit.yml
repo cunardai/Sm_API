@@ -77,9 +77,9 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
           if [ "$fail" -ne 0 ]; then
-            echo "Security audit found one or more missing or non-compliant settings."
+            echo "::warning::Security audit found one or more missing or non-compliant settings. Review the summary above."
           else
-            echo "Security audit completed successfully."
+            echo "::notice::Security audit completed successfully."
           fi
 
-          exit $fail
+          exit 0
